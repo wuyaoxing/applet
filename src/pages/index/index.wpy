@@ -1,0 +1,182 @@
+<style lang="less">
+@import './src/less/variables.less';
+</style>
+<template>
+  <view>
+    <view @tap="open">{{num}}</view>
+    <view>
+      <button open-type="getPhoneNumber" bindgetphonenumber="getPhoneNumber">{{ userPhoneNumber }}</button>
+    </view>
+    <view>
+      <button disabled="{{disabled}}" loading="{{submitLoading}}" @tap="submit">确定</button>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy'
+import tokenMixin from '@/mixins/token'
+
+import { submitUrl, lastLogUrl, decryptUrl } from '@/config'
+
+export default class Index extends wepy.page {
+  config = {
+    navigationBarTitleText: 'index'
+  }
+
+  mixins = [tokenMixin]
+
+  data = {
+    loading: false,
+    submitLoading: false,
+    disabled: false,
+    num: 1,
+    list: ['1', '2', '3', '4'],
+    userPhoneNumber: '获取手机号码'
+  }
+
+  methods = {
+    async open() {
+      let res = await wepy.showActionSheet({
+        itemList: this.list
+      })
+
+      if (!res.cancel) {
+        this.num = this.list[res.tapIndex]
+        this.$apply()
+      }
+    },
+
+    getPhoneNumber(e) {
+      console.log(e, e.detail.errMsg, e.detail.iv, e.detail.encryptedData)
+      if (e.detail.errMsg === 'getPhoneNumber:ok') {
+        const data = { iv: e.detail.iv, encryptData: e.detail.encryptedData }
+        this.encrypted(data)
+        wepy.showModal({
+          title: '授权成功',
+          showCancel: false
+        })
+      } else if (e.detail.errMsg === 'getPhoneNumber:fail user deny') {
+        wepy.showModal({
+          title: '未授权',
+          showCancel: false
+        })
+      } else {
+        wepy.showModal({
+          title: '授权失败',
+          showCancel: false
+        })
+      }
+    },
+
+    async submit(e) {
+      this.disabled = !this.disabled
+      this.submitLoading = !this.submitLoading
+      wepy.navigateTo({
+        url: `/pages/result/result?id=444`
+      })
+      wepy
+        .request({
+          url: submitUrl,
+          method: 'POST',
+          header: {
+            accesskey: this.token,
+            sessionid: this.sessionid
+          },
+          data: {
+            area: areaCode.code,
+            keywords: this.keywords,
+            phone: this.phone
+          }
+        })
+        .then(({ data }) => {
+          this.disabled = !this.disabled
+          this.submitLoading = !this.submitLoading
+          this.$apply()
+          wepy.navigateTo({
+            url: `/pages/result/result?id=444`
+          })
+        })
+        .catch(() => {
+          this.disabled = !this.disabled
+          this.submitLoading = !this.submitLoading
+          this.$apply()
+        })
+    }
+  }
+
+  toastEvent(msg) {
+    wepy.showToast({
+      title: msg,
+      icon: 'none',
+      duration: 2000
+    })
+  }
+
+  async getLastLog() {
+    await this.init()
+    await wepy
+      .request({
+        url: lastLogUrl,
+        method: 'GET',
+        header: {
+          accesskey: this.token,
+          sessionid: this.sessionid
+        }
+      })
+      .then(({ data }) => {
+        wepy.hideLoading()
+        this.lastLog = data.data
+        this.$apply()
+      })
+      .catch(() => {
+        wepy.hideLoading()
+      })
+  }
+
+  async init() {
+    await this.getToken()
+  }
+
+  setPhoneNumber() {
+    this.userPhoneNumber = this.lastLog.phone
+    this.$apply()
+  }
+
+  async encrypted(data) {
+    await wepy
+      .request({
+        method: 'POST',
+        url: decryptUrl,
+        data,
+        header: {
+          accesskey: this.token,
+          sessionid: this.sessionid
+        }
+      })
+      .then(({ data }) => {
+        const parseData = JSON.parse(data.data)
+        this.userPhoneNumber = parseData.purePhoneNumber
+        this.$apply()
+      })
+  }
+
+  async onLoad() {
+    await this.$parent.init()
+    wepy.showLoading({
+      title: '加载中',
+      icon: 'loading',
+      mask: true
+    })
+    await this.getLastLog()
+    this.setPhoneNumber()
+  }
+
+  onShareAppMessage(res) {
+    return {
+      title: 'index',
+      path: '/pages/index/index'
+    }
+  }
+}
+</script>

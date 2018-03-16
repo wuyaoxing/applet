@@ -1,0 +1,72 @@
+<style lang="less">
+</style>
+<template>
+  <view>
+    <view class="weui-cells weui-cells_after-title">
+      <navigator url="/pages/result/result?id=123" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+          <view class="weui-cell__bd">result</view>
+          <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+      </navigator>
+    </view>
+    <view>
+      <button class="weui-btn" @tap="goIndex">index</button>
+    </view>
+  </view>
+</template>
+<script>
+import wepy from 'wepy'
+import tokenMixin from '@/mixins/token'
+
+export default class Test extends wepy.page {
+  config = {
+    navigationBarTitleText: 'test'
+  }
+
+  mixins = [tokenMixin]
+
+  methods = {
+    goIndex() {
+      wepy.switchTab({
+        url: '/pages/index/index'
+      })
+    }
+  }
+
+  async init() {
+    await this.getToken()
+    // 获取数据
+    wepy.hideLoading()
+  }
+
+  onPullDownRefresh() {
+    wepy.showNavigationBarLoading()
+    this.init()
+    wepy.showToast({
+      title: '加载中',
+      icon: 'loading',
+      mask: true
+    })
+    wepy.hideNavigationBarLoading()
+
+    wepy.stopPullDownRefresh()
+  }
+
+  onLoad() {
+    this.init()
+    wepy.showLoading({
+      title: '加载中',
+      icon: 'loading',
+      mask: true
+    })
+  }
+
+  onShow() {
+    this.init()
+    wepy.showLoading({
+      title: '加载中',
+      icon: 'loading',
+      mask: true
+    })
+  }
+}
+</script>

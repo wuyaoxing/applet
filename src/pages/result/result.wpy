@@ -1,0 +1,80 @@
+<style lang="less">
+@import './src/less/variables.less';
+@import './src/wxParse/wxParse.wxss';
+</style>
+<template>
+  <view class="result">
+    <view class="weui-media-box weui-media-box_text" wx:for-items="{{result.results}}" wx:key="id">
+      <view class="weui-media-box__title weui-media-box__title_in-text result-title">
+        <block>
+          <import src="../../wxParse/wxParse.wxml"/>
+          <template is="wxParse" data="{{wxParseData:resultArray[index]}}" />
+        </block>
+      </view>
+    </view>
+  </view>
+</template>
+<script>
+import wepy from 'wepy'
+import tokenMixin from '@/mixins/token'
+
+import { resultUrl } from '@/config'
+
+import WxParse from '@/wxParse/wxParse'
+
+// 对wxParse解析源码做过修改
+
+export default class Result extends wepy.page {
+  data = {
+    query: {},
+    result: {}
+  }
+
+  mixins = [tokenMixin]
+
+  async init() {
+    await this.getToken()
+    await wepy
+      .request({
+        method: 'GET',
+        url: `${resultUrl}/${this.query.id}`,
+        header: {
+          accesskey: this.token,
+          sessionid: this.sessionid
+        }
+      })
+      .then(({ data }) => {
+        this.result = data.data
+        this.$apply()
+        wepy.hideLoading()
+      })
+      .catch(() => {
+        wepy.hideLoading()
+      })
+    const resultsMap = this.result.results.map(item => item.name)
+    const that = this
+    for (let i = 0; i < resultsMap.length; i++) {
+      await WxParse.wxParse('result' + i, 'html', resultsMap[i], that)
+      this.$apply()
+      if (i === resultsMap.length - 1) {
+        WxParse.wxParseTemArray(
+          'resultArray',
+          'result',
+          resultsMap.length,
+          that
+        )
+      }
+    }
+  }
+
+  onLoad(options) {
+    this.query = options
+    this.init()
+    wepy.showLoading({
+      title: '加载中',
+      icon: 'loading',
+      mask: true
+    })
+  }
+}
+</script>
